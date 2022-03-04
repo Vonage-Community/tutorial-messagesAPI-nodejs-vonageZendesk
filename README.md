@@ -4,10 +4,11 @@ Objective: tutorial to demo 2 way messages with zendesk ticket
 
 Prerequisites on Vonage nexmo dashboard:
 1. Sign up for vonage nexmo account 
-2. Complete WA onboarding (if chosen channel is WhatsApp) 
-3. Create vonage application
-4. Configure webhooks
-5. Get JWT 
+2. Buy a Vonage LVN
+3. Complete WA onboarding (if chosen channel is WhatsApp) 
+4. Create vonage application
+5. Configure webhooks
+6. Get JWT 
 
 
 Prerequisites on Zendesk:
