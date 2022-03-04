@@ -1,6 +1,8 @@
 # VonageZendesk
 # tutorial-messagesAPI-nodejs-vonageZendesk
-Vonage nexmo dashboard:
+Objective: tutorial to demo 2 way messages with zendesk ticket
+
+Prerequisites on Vonage nexmo dashboard:
 1. Sign up for vonage nexmo account 
 2. Complete WA onboarding (if chosen channel is WhatsApp) 
 3. Create vonage application
@@ -8,7 +10,7 @@ Vonage nexmo dashboard:
 5. Get JWT 
 
 
-Zendesk:
+Prerequisites on Zendesk:
 1. Sign up for an account on zendesk
 2. Add webhook(s)
 3. Configure triggers and automations (as required by the use case)
