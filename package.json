@@ -4,7 +4,8 @@
   "description": "Objective: tutorial to demo 2 way messages with zendesk ticket",
   "main": "zendeskVonage.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node zendeskVonage.js"
   },
   "repository": {
     "type": "git",
@@ -20,6 +21,7 @@
     "@vonage/server-sdk": "^2.10.7-beta-2",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
-    "https": "^1.0.0"
+    "https": "^1.0.0",
+    "localtunnel": "^2.0.2"
   }
 }
