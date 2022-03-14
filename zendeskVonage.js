@@ -2,6 +2,7 @@ require('dotenv').config()
 const Vonage = require('@vonage/server-sdk')
 var express = require('express')
 const https = require('https')
+const jwt = require("jsonwebtoken")
 const localtunnel = require('localtunnel')
 
 const PORT = process.env.PORT || 3000
@@ -25,19 +26,32 @@ const ZENDESK_DEFAULT_PRIORITY = process.env.ZENDESK_DEFAULT_PRIORITY || "urgent
 const app = express()
 app.use(express.json())
 
-//Inbound messages webhook added in Vonage nexmo dashbaord creates a ticekt in Zendesk
-app.post('/inboundMessage', (req, res) => {
-  const { profile, text, from } = req.body
-  const requesterName = profile.name
-  createZendeskTicket(text, from, requesterName);
+// status message webhook, just for monitoring
+app.post('/status', (req, res) => {
+  console.log(`Received status webhook:\n${req.body}`)
   res.json(200);
 })
 
-//Send outbound message using Vonage Vonage APIs
-function sendMessage(zendeskRequesterNumber, message, isTemplateMessage) {
-  //channel could be set to 'sms' or 'whatsapp'
-  const channel = "whatsapp";
+//Inbound messages webhook added in Vonage nexmo dashbaord creates a ticekt in Zendesk
+app.post('/inboundMessage', (req, res) => {
+  const vonageSignature = req.headers.authorization.split(" ")[1]
+  const decoded = jwt.verify(vonageSignature, process.env.VONAGE_SIGNATURE_SECRET, { algorithms: ['HS256'] })
+  console.log(decoded)
+  if (decoded.api_key !== process.env.VONAGE_API_KEY) {
+    console.error("Invalid signature. This message does not come from Vonage.")
+    res.sendStatus(200)
+    return
+  }
 
+  console.log(`Received inbound message webhook for message ${req.body.message_uuid}.`)
+  const { profile, text, from } = req.body
+  const requesterName = profile.name
+  createZendeskTicket(text, from, requesterName);
+  res.sendStatus(200);
+})
+
+//Send outbound message using Vonage Vonage APIs
+function sendMessage(zendeskRequesterNumber, message, isTemplateMessage, channel) {
   // check if message is template or text and prepare accordingly
   const sendableMessage = isTemplateMessage ? { message_type: "custom", custom: message } : { message_type: "text", text: message }
 
@@ -74,8 +88,19 @@ function sendMessage(zendeskRequesterNumber, message, isTemplateMessage) {
 
 // Zendesk ticket update webhook sends an outbound message back to the user
 app.post('/getTicketUpdate', (req, res) => {
+  // we are checking the header for simple bearer auth
+  if (req.headers.authorization !== `Bearer ${process.env.LOCAL_API_TOKEN}`) {
+    console.warn("Unauthenticated user tried to run Zendesk webhook.")
+    res.sendStatus(401)
+    return
+  }
+
   const { requesterPhone: zendeskRequesterPhone, requesterName: zendeskRequesterName, comment: zendeskComment, ticketId: zendeskTicketId, ticketTitle: zendeskTicketTitle } = req.body
-  const isTemplateMessage = (VONAGE_WHATSAPP_NAMESPACE && VONAGE_WHATSAPP_TICKET_TEMPLATE_NAME && !zendeskComment.includes("\n")) ? true : false
+
+  //channel could be set to 'sms' or 'whatsapp'
+  const CHANNEL = process.env.CHANNEL || "whatsapp";
+
+  const isTemplateMessage = (VONAGE_WHATSAPP_NAMESPACE && VONAGE_WHATSAPP_TICKET_TEMPLATE_NAME && !zendeskComment.includes("\n") && CHANNEL === "whatsapp") ? true : false
   // if template data is filled, use templates to send; otherwise use plain text message
   const message = isTemplateMessage ? {
     type: "template",
@@ -108,7 +133,7 @@ app.post('/getTicketUpdate', (req, res) => {
       ]
     }
   } : `Your Zendesk Ticket *${zendeskTicketTitle}* with reference number *${zendeskTicketId}* has been updated with the following comment:\n\n${zendeskComment}`;
-  sendMessage(zendeskRequesterPhone, message, isTemplateMessage);
+  sendMessage(zendeskRequesterPhone, message, isTemplateMessage, CHANNEL);
   res.json(200);
 });
 
@@ -153,7 +178,7 @@ function createZendeskTicket(text, from, name) {
 let tunnel;
 app.listen(PORT, () => {
   console.log(`Hello world app listening on port ${PORT}! Starting localtunnel...`)
-  tunnel = localtunnel(PORT, { subdomain: 'zendesk' }, (err, tunnel) => {
+  tunnel = localtunnel(PORT, { subdomain: process.env.LOCALTUNNEL_SUBDOMAIN }, (err, tunnel) => {
     console.log(`Established localtunnel at ${tunnel.url}.`)
   })
   tunnel.on('error', function (err) {
