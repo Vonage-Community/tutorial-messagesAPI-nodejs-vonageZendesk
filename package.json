@@ -1,0 +1,26 @@
+{
+  "name": "tutorial-messagesapi-nodejs-vonagezendesk",
+  "version": "1.0.0",
+  "description": "Objective: tutorial to demo 2 way messages with zendesk ticket",
+  "main": "zendeskVonage.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vonage-Community/tutorial-messagesAPI-nodejs-vonageZendesk.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Vonage-Community/tutorial-messagesAPI-nodejs-vonageZendesk/issues"
+  },
+  "homepage": "https://github.com/Vonage-Community/tutorial-messagesAPI-nodejs-vonageZendesk#readme",
+  "dependencies": {
+    "@vonage/server-sdk": "^2.10.11",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.17.3",
+    "https": "^1.0.0"
+  }
+}
