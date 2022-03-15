@@ -21,7 +21,7 @@ This tutorial is a demo for 2-way messaging from and to Zendesk tickets via Vona
 ## 3. Setup Zendesk
 
 1. Sign up for an account on [Zendesk](https://zendesk.com)
-2. Fill in your Zendesk Sub
+2. Fill in your Zendesk Subdomain into the .env file under `ZENDESK_SUBDOMAIN`. (E.g. if your domain looks like https://yourcompany.zendesk.com, your need to fill in "yourcompany" as a value)
 3. Go to Zendesk API Settings at `https://{ZENDESK_SUBDOMAIN}.zendesk.com/admin/apps-integrations/apis/zendesk-api/settings` and enable Token access and generate a token
 4. Paste your Zendesk Administrator E-Mail and API Token into the .env file as `ZENDESK_CREDENTIALS` in the concatenated format `your@email.com/token:{YOUR_ZENDESK_TOKEN}`
 5. Besides the already filled `ZENDESK_CREDENTIALS` and `ZENDESK_SUBDOMAIN`, now fill in at least the variables `LOCAL_API_TOKEN` and `LOCALTUNNEL_SUBDOMAIN` in your .env file. You can actually use any value you want to fill them.
