@@ -26,6 +26,16 @@ const ZENDESK_DEFAULT_PRIORITY = process.env.ZENDESK_DEFAULT_PRIORITY || "urgent
 const app = express()
 app.use(express.json())
 
+/*
+1. Receive inbound message on WA
+2. check a ticket is created under the same requestor and status open
+3. If ticket is created:
+	a. reply back on WA with status of the ticket
+4. if no ticket is created, create one
+5. when agent updates ticket, reply back on WA
+*/
+
+
 // status message webhook, just for monitoring
 app.post('/status', (req, res) => {
   console.log(`Received status webhook:\n${req.body}`)
@@ -34,7 +44,9 @@ app.post('/status', (req, res) => {
 
 //Inbound messages webhook added in Vonage nexmo dashbaord creates a ticekt in Zendesk
 app.post('/inboundMessage', (req, res) => {
-  const vonageSignature = req.headers.authorization.split(" ")[1]
+	
+ const vonageSignature = req.headers.authorization.split(" ")[1];
+  console.log("vonageSignature: "+vonageSignature+" : "+process.env.VONAGE_SIGNATURE_SECRET);
   const decoded = jwt.verify(vonageSignature, process.env.VONAGE_SIGNATURE_SECRET, { algorithms: ['HS256'] })
   console.log(decoded)
   if (decoded.api_key !== process.env.VONAGE_API_KEY) {
@@ -42,16 +54,16 @@ app.post('/inboundMessage', (req, res) => {
     res.sendStatus(200)
     return
   }
-
   console.log(`Received inbound message webhook for message ${req.body.message_uuid}.`)
   const { profile, text, from } = req.body
-  const requesterName = profile.name
-  createZendeskTicket(text, from, requesterName);
+ // const requesterName = profile.name
+  checkTicketCreated(text, from);
   res.sendStatus(200);
 })
 
 //Send outbound message using Vonage Vonage APIs
 function sendMessage(zendeskRequesterNumber, message, isTemplateMessage, channel) {
+
   // check if message is template or text and prepare accordingly
   const sendableMessage = isTemplateMessage ? { message_type: "custom", custom: message } : { message_type: "text", text: message }
 
@@ -86,19 +98,64 @@ function sendMessage(zendeskRequesterNumber, message, isTemplateMessage, channel
   req.end()
 }
 
+
+//checkTicketCreated(req.body.from);
+function checkTicketCreated(message,requester)
+{
+//endpoint from Zendesk to list ticket created by a user
+	const options = {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Basic ' + Buffer.from(ZENDESK_CREDENTIALS).toString("base64")
+    }
+  }
+
+  const req = https.request(`https://${ZENDESK_SUBDOMAIN}.zendesk.com/api/v2/search.json?query=requester:${requester} status:open type:ticket`, options, res => {
+    console.log(`statusCode: ${res.statusCode}`);
+	   let data = '';
+    res.on('data', (chunk) => {
+        data = data + chunk.toString();
+    });
+  
+    res.on('end', () => {
+        const body = JSON.parse(data);
+		 req.end()
+		ticketsCreated=body.count;
+		ticketsCreated==0?createZendeskTicket(message, requester):getCreatedTicket(body,requester);
+	
+		
+    });
+  })
+  
+
+  req.on('error', error => {
+    console.log("error here");
+    console.error(error)
+  })
+  req.end()
+}
+
+function getCreatedTicket(ticket,requester){
+	const message=`I can see that there's a ticket created with subject: *${ticket.results[0].subject}* and it's currently *${ticket.results[0].status}'*. `;
+	  sendMessage(requester, message, false, process.env.CHANNEL);
+}
+
 // Zendesk ticket update webhook sends an outbound message back to the user
 app.post('/getTicketUpdate', (req, res) => {
   // we are checking the header for simple bearer auth
+	console.log(req.headers.authorization);
+	
   if (req.headers.authorization !== `Bearer ${process.env.LOCAL_API_TOKEN}`) {
     console.warn("Unauthenticated user tried to run Zendesk webhook.")
     res.sendStatus(401)
     return
   }
-
-  const { requesterPhone: zendeskRequesterPhone, requesterName: zendeskRequesterName, comment: zendeskComment, ticketId: zendeskTicketId, ticketTitle: zendeskTicketTitle } = req.body
+  const { requester_name: zendeskRequesterPhone, requester_name:zendeskRequesterName , comment: zendeskComment, ticket_id: zendeskTicketId, ticket_title: zendeskTicketTitle } = req.body
 
   //channel could be set to 'sms' or 'whatsapp'
   const CHANNEL = process.env.CHANNEL || "whatsapp";
+
 
   const isTemplateMessage = (VONAGE_WHATSAPP_NAMESPACE && VONAGE_WHATSAPP_TICKET_TEMPLATE_NAME && !zendeskComment.includes("\n") && CHANNEL === "whatsapp") ? true : false
   // if template data is filled, use templates to send; otherwise use plain text message
@@ -138,7 +195,7 @@ app.post('/getTicketUpdate', (req, res) => {
 });
 
 
-function createZendeskTicket(text, from, name) {
+function createZendeskTicket(text, from) {
   // below object ticket is only for demo purpose
   const data = JSON.stringify({
     ticket: {
@@ -148,8 +205,8 @@ function createZendeskTicket(text, from, name) {
       priority: ZENDESK_DEFAULT_PRIORITY,
       subject: `Whatsapp request: ${text.substr(0, 20)}...`,
       requester: {
-        name,
-        phone: from
+      	name: from
+       
       }
     }
   })
@@ -164,6 +221,8 @@ function createZendeskTicket(text, from, name) {
 
   const req = https.request(`https://${ZENDESK_SUBDOMAIN}.zendesk.com/api/v2/tickets.json`, options, res => {
     console.log(`statusCode: ${res.statusCode}`)
+	  const confirmMessage="Thank you for contacting Vonage. Your ticket has been raised successfully."
+	  res.statusCode==201?sendMessage(from, confirmMessage, false, process.env.CHANNEL):console.log(`statusCode: ${res.statusCode}`);
   })
 
   req.on('error', error => {
