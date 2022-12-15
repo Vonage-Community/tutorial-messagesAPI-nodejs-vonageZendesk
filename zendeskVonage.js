@@ -81,7 +81,8 @@ function sendMessage(zendeskRequesterNumber, message, isTemplateMessage, channel
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer ' + JWT
+      'Authorization': 'Bearer ' + JWT,
+	'User-Agent': 'ZenDesk_v1',
     }
   }
 
