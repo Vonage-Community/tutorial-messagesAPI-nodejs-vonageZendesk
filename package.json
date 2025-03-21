@@ -18,7 +18,7 @@
   },
   "homepage": "https://github.com/Vonage-Community/tutorial-messagesAPI-nodejs-vonageZendesk#readme",
   "dependencies": {
-    "@vonage/server-sdk": "^2.10.7-beta-2",
+    "@vonage/server-sdk": "^2.11.3",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "https": "^1.0.0",
